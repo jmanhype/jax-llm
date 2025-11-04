@@ -74,8 +74,14 @@ class CustomLlamaTokenizer:
         byte_chunks = [self.id_to_token.get(id, b' ') for id in token_ids]
         return b''.join(byte_chunks).decode('utf-8', errors='replace')
 
-# Initialize the tokenizer
-tokenizer = CustomLlamaTokenizer("/home/batmanosama/.llama/checkpoints/Llama3.2-1B-Instruct")
+# Initialize the tokenizer (will be set when loading the model)
+tokenizer = None
+
+def init_tokenizer(model_path: str):
+    """Initialize the tokenizer with the given model path."""
+    global tokenizer
+    tokenizer = CustomLlamaTokenizer(model_path)
+    return tokenizer
 
 def compute_freqs_cis(dim: int, end: int, theta: float = 10000.0) -> jax.Array:
     """Compute frequency cis for rotary embeddings."""
@@ -423,7 +429,20 @@ def generate(
     return jnp.concatenate([input_tokens, token_sequence.T], axis=-1)
 
 def load_llama_weights(model_path: str) -> Tuple[Dict[str, jax.Array], ModelParams]:
-    """Load LLaMA weights from the downloaded checkpoint."""
+    """Load LLaMA weights from the downloaded checkpoint.
+
+    Args:
+        model_path: Path to the LLaMA checkpoint directory containing:
+                   - params.json: Model configuration
+                   - consolidated.00.pth: Model weights
+                   - tokenizer.model: Tokenizer vocabulary
+
+    Returns:
+        Tuple of (weights dict, model parameters)
+    """
+    # Initialize tokenizer for this model
+    init_tokenizer(model_path)
+
     model_path = Path(model_path)
     params_path = model_path / "params.json"
     with open(params_path, "r") as f:
@@ -461,15 +480,32 @@ def load_llama_weights(model_path: str) -> Tuple[Dict[str, jax.Array], ModelPara
 
 def tokenize(text: str) -> List[int]:
     """Tokenize the input text using the custom LLaMA tokenizer."""
+    if tokenizer is None:
+        raise RuntimeError("Tokenizer not initialized. Call init_tokenizer() or load_llama_weights() first.")
     return tokenizer.tokenize(text)
 
 def decode_tokens(tokens: List[int]) -> str:
     """Decode the tokens back to text using the custom LLaMA tokenizer."""
+    if tokenizer is None:
+        raise RuntimeError("Tokenizer not initialized. Call init_tokenizer() or load_llama_weights() first.")
     return tokenizer.decode(tokens)
 
 def main():
+    """Main function demonstrating model usage.
+
+    Set the MODEL_PATH environment variable or modify the default path below.
+    """
+    import os
+
+    # Get model path from environment variable or use default
+    model_path = os.environ.get(
+        "LLAMA_MODEL_PATH",
+        "/home/batmanosama/.llama/checkpoints/Llama3.2-1B-Instruct"
+    )
+
+    print(f"Loading model from: {model_path}")
+
     # Load LLaMA weights and model parameters
-    model_path = "/home/batmanosama/.llama/checkpoints/Llama3.2-1B-Instruct"
     weights, model_params = load_llama_weights(model_path)
 
     # Compute frequency cis

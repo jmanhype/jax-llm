@@ -1,0 +1,17 @@
+# JAX LLM Implementation Requirements
+
+# Core JAX dependencies
+jax>=0.4.20
+jaxlib>=0.4.20
+
+# For model loading and tensor operations
+torch>=2.0.0
+
+# Tokenization
+sentencepiece>=0.1.99
+
+# Visualization (optional, for mandle.py)
+matplotlib>=3.7.0
+
+# Optional: GPU support
+# Install with: pip install jax[cuda12_pip] -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
